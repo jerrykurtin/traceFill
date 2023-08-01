@@ -1,6 +1,9 @@
 import math
 import matplotlib.pyplot as plt
 
+# A value used to warn when path has widths that are too different
+threshold = 1.5
+
 class Vector:
     def __init__(self, x, y, z = 0):
         self.x = x
@@ -40,7 +43,8 @@ class LineSegment:
         c = self.x1 * self.y2 - self.x2 * self.y1
         return a, b, c
     
-    # percent between [0, 1]
+    # Calculate the partial midpoint between the segment
+    # @arg percent: [0, 1] percentage traveled between the first and second point
     def midpoint(self, percent = 0.5):
         if percent < 0 or percent > 1:
             raise ValueError("percent must be between [0, 1]")
@@ -50,12 +54,11 @@ class LineSegment:
     # Find perpendicular distance to a point
     # Source: https://www.geeksforgeeks.org/perpendicular-distance-between-a-point-and-a-line-in-2-d/
     def distToPoint(self, point):
-        # first calculate line in ax + by = c form
         a, b, c = self.toLine()
         return abs(a * point[0] + b * point[1] + c) / math.sqrt(a * a + b * b)
     
     def __repr__(self):
-        return (f"[x1: {self.x1}, y1: {self.y1}, x2: {self.x2}, y2: {self.y2}]")
+        return f"[x1: {self.x1}, y1: {self.y1}, x2: {self.x2}, y2: {self.y2}]"
 
 """
 Build the counterclockwise convex hull of a polygon.
@@ -84,7 +87,7 @@ def convexHull(points):
         ans.append(point)
         while len(ans) > 2 and Vector(ans[-2][0] - ans[-3][0], ans[-2][1] - ans[-3][1]) \
             .cross(Vector(ans[-1][0] - ans[-2][0], ans[-1][1] - ans[-2][1])).z <= 0:
-            print(f"excluding point {ans[-2]}")
+            print(f"[INFO] excluding point {ans[-2]}")
             temp = ans.pop()
             ans.pop()
             ans.append(temp)
@@ -141,11 +144,16 @@ def buildPath(points, gap):
     
     # Build segments from vertices to centroid
     segments = [LineSegment(pt[0], pt[1], centroid[0], centroid[1]) for pt in points]
+    perimeter = [LineSegment(points[idx][0], points[idx][1], points[(idx + 1) % len(points)][0], points[(idx + 1) % len(points)][1]) for idx in range(len(points))]
     
     # Divide segments by maximum perpendicular distance from an edge to the centroid
-    maxPerpDist = max([sg.distToPoint(centroid) for sg in segments])
-    print("max distance:", maxPerpDist)
+    maxPerpDist = max([sg.distToPoint(centroid) for sg in perimeter])
+    minPerpDist = min([sg.distToPoint(centroid) for sg in perimeter])
     numIntervals = math.ceil(maxPerpDist / gap)
+    if minPerpDist == 0 or maxPerpDist / minPerpDist > threshold:
+        print(f"[WARNING] elongated shape detected. Max width: {maxPerpDist / numIntervals:.2f} and min width: {minPerpDist / numIntervals:.2f} exceeds threshold of {threshold}")
+
+    # print(f"max distance: {maxPerpDist}, gap: {gap}, leads to {numIntervals} intervals")
     midpoints = [[sg.midpoint(1 / numIntervals * itv) for itv in range(numIntervals)] for sg in segments]
 
     # build final path
@@ -163,25 +171,20 @@ import random
 numVertices = 4
 width = round(random.uniform(0.2, 2), 2)
 vertices = [[random.randint(0, 10), random.randint(0, 10)] for _ in range(numVertices)]
-# vertices = [[0, 0], [4, 0], [4, 4], [0, 4]]
+# vertices = [[6, 6], [7, 6], [0, 5], [0, 5]]
 print("vertices: ", vertices)
 print("numVertices:", numVertices, ", width:", width)
 sol = buildPath(vertices, width)
-print("final path:\n", sol)
+# print("final path:\n", sol)
 
 
 # Plot results
 plt.figure()
 # plt.scatter([s[0] for s in sol], [s[1] for s in sol])
+plt.scatter([v[0] for v in vertices], [v[1] for v in vertices], color="r")
 for idx in range(len(sol) - 1):
     plt.plot([sol[idx][0], sol[idx+1][0]], [sol[idx][1], sol[idx+1][1]], color="blue")
 plt.show()
-
-seg = LineSegment(0, 0, 2, 2)
-pt = [1, 1]
-# return abs((self.x2 - self.x1) * (self.y1 - point[1]) - (self.x1 - point[0]) * (self.y2 - self.y1)) / self.magnitude()
-print("test:", seg.distToPoint(pt))
-
 
 """
 changes to make:
@@ -197,4 +200,8 @@ shallow:
 
 vertical tricks:
 [[0, 5], [0, 3], [0, 7], [6, 0], [6, 2]]
+
+
+very elongated:
+[[6, 6], [7, 6], [0, 5], [0, 5]]
 """
