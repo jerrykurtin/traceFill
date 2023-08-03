@@ -4,6 +4,14 @@ import matplotlib.pyplot as plt
 # A value used to warn when path has widths that are too different
 threshold = 1.5
 
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        return f"[x: {x}, y: {y}]"
+
 class Vector:
     def __init__(self, x, y, z = 0):
         self.x = x
